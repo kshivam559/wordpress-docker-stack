@@ -172,6 +172,9 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
 define('WP_REDIS_HOST', 'redis');
 define('WP_REDIS_PORT', 6379);
 
+define('WP_REDIS_DATABASE', 0);
+define('WP_CACHE_KEY_SALT', 'example_');
+
 define('WP_MEMORY_LIMIT', '64M');
 define('WP_MAX_MEMORY_LIMIT', '128M');
 
