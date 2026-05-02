@@ -1,0 +1,95 @@
+services:
+  traefik:
+    image: traefik:v3.6.6
+    container_name: traefik
+    restart: always
+    command:
+      - "--api.dashboard=false"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.email=yourmail@mail.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik/acme.json:/letsencrypt/acme.json"
+
+    networks:
+      - wp
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: always
+    volumes:
+      - ./html:/var/www/html
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wp.rule=Host(`example.com`) || Host(`www.example.com`)"
+      - "traefik.http.routers.wp.entrypoints=web,websecure"
+      - "traefik.http.routers.wp.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.wp.middlewares=redirect-to-https"
+
+    depends_on:
+      - php
+
+    networks:
+      - wp
+
+  php:
+    build: ./php
+    container_name: php
+    restart: always
+    volumes:
+      - ./html:/var/www/html
+      - ./php/php.ini:/usr/local/etc/php/php.ini
+      - ./php/www.conf:/usr/local/etc/php-fpm.d/www.conf
+    networks:
+      - wp
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: strong_root_pass
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wpuser
+      MYSQL_PASSWORD: strong_pass
+    volumes:
+      - ./mariadb:/var/lib/mysql
+    networks:
+      - wp
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    networks:
+      - wp
+
+  adminneo:
+    image: adminneoorg/adminneo
+    container_name: adminneo
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    depends_on:
+      - mariadb
+
+    networks:
+      - wp
+
+networks:
+  wp:
