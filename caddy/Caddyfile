@@ -1,0 +1,67 @@
+# Reusable snippets to keep things clean
+(wp_security) {
+
+    # Block Bad Bots, Invalid Methods, and Malformed Characters
+    @bad_requests {
+        header_regexp User-Agent "(?i)masscan|nmap|nikto|sqlmap|acunetix|dirbuster|gobuster"
+        not method GET POST HEAD PUT DELETE OPTIONS PATCH
+        path_regexp "[\x00-\x1F\x7F-\xFF]"
+    }
+    abort @bad_requests
+
+    # Block sensitive files & PHP in uploads
+    @forbidden {
+        path /wp-config.php /.env /xmlrpc.php /wp-content/uploads/*.php
+        path_regexp /\.ht
+    }
+    respond @forbidden "Access Denied" 403
+
+    # Standard Security Headers
+    header {
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer-when-downgrade"
+        -Server # Hide server signature
+    }
+}
+
+(optimizations) {
+
+    encode zstd gzip
+
+    # WebP Sidecar: Serve .webp if browser supports it and file exists
+    @webp_sidecar {
+        header Accept *image/webp*
+        file {path}.webp
+    }
+    rewrite @webp_sidecar {path}.webp
+
+    # Static File Caching (1 year)
+    @static {
+        path *.png *.jpg *.jpeg *.gif *.webp *.js *.css *.ico *.svg *.woff *.woff2 *.otf *.xml
+    }
+    header @static Cache-Control "public, max-age=31536000, no-transform"
+}
+
+example.com, www.example.com {
+
+    request_body {
+        max_size 20MB
+    }
+
+    root * /var/www/html
+    import wp_security
+    import optimizations
+
+    # Rank Math Sitemap Rewrites
+    rewrite /sitemap_index.xml /index.php?sitemap=1
+    rewrite /([^/]+?)-sitemap([0-9]+)?.xml /index.php?sitemap={re.1.1}&sitemap_n={re.1.2}
+
+    # Elementor & WordPress Routing
+    # Prioritises .html/.htm files if they exist
+    try_files {path} {path}/ {path}/index.html {path}/index.htm index.php
+
+    php_fastcgi php:9000
+    file_server
+}

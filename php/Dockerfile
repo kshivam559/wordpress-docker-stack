@@ -5,6 +5,7 @@ RUN apk add --no-cache \
     freetype \
     libjpeg-turbo \
     libpng \
+    libwebp \
     libzip \
     oniguruma \
     imagemagick \
@@ -12,12 +13,13 @@ RUN apk add --no-cache \
     freetype-dev \
     libjpeg-turbo-dev \
     libpng-dev \
+    libwebp-dev \
     libzip-dev \
     oniguruma-dev \
     imagemagick-dev \
     $PHPIZE_DEPS \
     && docker-php-ext-install mysqli pdo pdo_mysql opcache mbstring zip \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install gd \
     && pecl install redis imagick \
     && docker-php-ext-enable redis imagick \
